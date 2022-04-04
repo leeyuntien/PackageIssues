@@ -21,6 +21,8 @@ struct SmoothingSpline
     end
 end
 
+using LinearAlgebra
+
 """ 
     createBasisMatrix(prices::AbstractVector, maturities::AbstractVector, df)
 
@@ -44,23 +46,26 @@ function createBasisMatrix(maturities::AbstractVector, df)
 end
 
 """ 
-    est_ss_params(prices::AbstractVector, maturities::AbstractVector, df=3)
+    est_ss_params(prices::AbstractVector, maturities::AbstractVector, df=3:3)
 
 Return the SmoothingSpline fitted parameters. Reference: https://www.stat.cmu.edu/~ryantibs/advmethods/notes/smoothspline.pdf.
 """
-function est_ss_params(prices::AbstractVector, maturities::AbstractVector, df=3)
-    ssm = SmoothingSpline(df, zeros(df), maturities)
-    x = createBasisMatrix(maturities, df)
-    svd_fac = svd(x)
-    gt = svd_fac.V * Diagonal(svd_fac.S)
+function est_ss_params(prices::AbstractVector, maturities::AbstractVector, df=3:3)
     dis = Inf
-    for λ in 0:10:1000 # ignore not so important penalty matrix
-        β = svd_fac.V * (gt * gt' .+ λ) * Diagonal(svd_fac.S) * svd_fac.U' * prices
-        e = prices .- x * β
-        t = sum(e .* e) + λ * dot(β, β)
-        if t < dis
-            dis = t
-            ssm.β = β
+    ssm = SmoothingSpline(3, zeros(d), maturities)
+    for d in df
+        x = createBasisMatrix(maturities, d)
+        svd_fac = svd(x)
+        gt = svd_fac.V * Diagonal(svd_fac.S)
+        for λ in 0:10:1000 # ignore not so important penalty matrix
+            β = svd_fac.V * (gt * gt' .+ λ) * Diagonal(svd_fac.S) * svd_fac.U' * prices
+            e = prices .- x * β
+            t = sum(e .* e) + λ * dot(β, β)
+            if t < dis
+                dis = t
+                ssm.β = β
+                ssm.df = d
+            end
         end
     end
     return ssm
